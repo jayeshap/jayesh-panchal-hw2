@@ -1,12 +1,5 @@
 class MoviesController < ApplicationController
 
-  def initialize
-    @all_ratings = Movie.all_ratings
-    @ratings= @all_ratings;
-    @sort_by= :id;
-    super
-  end
-
   def show
     id = params[:id] # retrieve movie ID from URI route
     @movie = Movie.find(id) # look up movie by unique ID
@@ -14,48 +7,23 @@ class MoviesController < ApplicationController
   end
 
   def index
-    redirect = false
-    if params["sort_by"]
-      @sort_by = params["sort_by"]
-    elsif session[:sort_by]
-      @sort_by = session[:sort_by]
-      redirect = true
-    else
-      @sort_by = :id
-      redirect = true
-    end                     
-
-    if params["ratings"]
-      @ratings= params["ratings"]
-    elsif session[:ratings]
-      @ratings =session[:ratings]
-      redirect = true
-    else
-      @ratings = {}
-      @all_ratings.each do |rating|
-        @ratings[rating]="yes"
-      end
-      redirect = true
+    @all_ratings      = Movie.all_ratings # All ratings available
+    
+    @filtered_ratings = params[:ratings] || session[:ratings] # Ratings on which to filter
+    @filtered_ratings = {} if @filtered_ratings.nil?
+    @sort             = params[:sorting] || session[:sorting] # Sort sort sort
+    
+    @movies           = Movie.scoped  # Get all records, but as a Relation, not an array a la .all
+    # Sorting
+    if  @sort && Movie.attribute_names.include?(@sort)
+      @movies = @movies.order @sort
+      session[:sorting] = @sort
     end
-    if redirect 
-      redirect_to movies_path(:sort_by=>@sort_by,:ratings=>@ratings)
+    # Filtering
+    unless @filtered_ratings.empty?
+      @movies = @movies.where :rating => @filtered_ratings.keys 
+      session[:ratings] = @filtered_ratings
     end
-
-    all_movies = Movie.order(@sort_by)
-
-    @movies = []
-
-
-    all_movies.each do |movie|
-      if @ratings.keys.include?(movie["rating"])
-        @movies << movie
-      end
-    end
-
-    flash[:sort_by] = @sort_by
-    flash[:ratings] = @ratings
-    session[:sort_by] = @sort_by
-    session[:ratings] = @ratings
 
   end
 
